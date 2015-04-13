@@ -1,0 +1,58 @@
+#!/usr/bin/env perl
+#
+# File name: pt
+# Date:      2013/05/23 12:09
+# Author:    Kevin Miklavcic <kevin@9b.io>
+#
+#############################################################################
+#
+
+use Cwd;
+use strict;
+use warnings;
+
+die "usage: $0 <target file or directory>\n" if( $ARGV[0] && $ARGV[0] =~ /^-?-help$/);
+my $target = $ARGV[0] ? $ARGV[0] : './';
+die "target does not exist\n" unless( -e $target );
+
+if( $target =~/^\// ){
+  # path is already rooted, just copy to clipboard
+} elsif ( $target =~m|^\./| ){
+  # path is from current dir, remove and prepend pwd
+  $target = substr $target, 2;
+  $target = cwd() . '/' . $target;
+} else {
+  $target = cwd() . '/' . $target;
+}
+if( substr($target,-1) eq '/' ){
+  chop $target;
+  #$target = substr($target,0,-1);
+}
+print $target . "\n";
+if( -x "/usr/bin/pbcopy" ){
+  system("/bin/echo -n $target|pbcopy"); #xclip -selection c");
+} elsif ( -x "/usr/bin/xclip" ){
+  system("/bin/echo -n $target|xclip -selection c");
+}
+__END__
+
+=head1 pt
+
+=head1 DESCRIPTION
+
+Get a full path to a given file. If available, copy to the system clipboard.
+
+=head1 USAGE
+
+pt <./path/to/file>
+
+=head1 EXAMPLE
+
+$ cd /var/tmp/
+$ pt ./some/file
+/var/tmp/some/file
+
+=head1 AUTHOR
+
+  Kevin Miklavcic <kevin@9b.io>
+

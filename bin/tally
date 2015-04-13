@@ -1,0 +1,9 @@
+#!/usr/bin/perl -n
+# Tally up any number appearing at the beginning of each line.
+#   or the end if '-end' is requested.
+if($ARGV[0] ne '-end'){
+  ($var) += (/^\s*(\d+)[^\d]/) && $1;
+} else {
+  ($var) += (/[^\d](\d+)\s*$/) && $1;
+}
+END{print $var ."\n"}

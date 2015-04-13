@@ -1,0 +1,2 @@
+#!/usr/bin/perl -p
+$_ = /sid:\s*(\d+)\s*;/ && "$1\n" // undef;
