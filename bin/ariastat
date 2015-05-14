@@ -1,0 +1,121 @@
+#!/usr/bin/env perl
+#
+# File name: ariastat
+# Date:      2013/08/27 14:26
+# Author:    Kevin Miklavcic
+#
+#############################################################################
+#
+
+use 5.010;
+
+use strict;
+use warnings;
+use JSON;
+use Try::Tiny;
+use LWP::UserAgent;
+use Data::Dumper;
+
+my $q=1;
+my $maxretry = 5;
+
+my @servers = qw(
+localhost
+);
+
+if( @ARGV ){
+  @servers = @ARGV;
+}
+my $uri;
+my $client = new LWP::UserAgent;
+foreach my $server (@servers){
+  if( $server !~ /\:\d+/){
+    $server .= ":6888";
+  }
+  $uri = "http://" . $server . "/jsonrpc";
+
+  say "GlobalStat: " . $server ;
+  my $stuff = call('aria2.getGlobalStat');
+  map { printf "  %-18s: %-8s\n", $_, $stuff->{$_} } keys %{$stuff};
+  listactive();
+}
+
+sub listactive {
+  my $stuff = call('aria2.tellActive');
+  say "\nActive Downloads: " . scalar(@$stuff);
+  foreach my $entry (@{$stuff}){    
+    my $gid = $entry->{gid};
+    my $uri = $entry->{files}[0]{uris}[0]{uri};
+    my $percent = sprintf('%.2f', ($entry->{completedLength} * 100 / $entry->{totalLength}));
+    my $path = $entry->{files}[0]{path};
+
+    say '* Gid: ' . $gid . ' - ' . $percent . '% complete (' .  prettybytes($entry->{completedLength}) . '/' . prettybytes($entry->{totalLength}) . ')';
+    say '    Path: ' . $path;
+    say '    Uri: ' . $uri . "\n";
+  } 
+}
+
+
+sub call {
+    my ($method) = shift;    #, $args) = @_;
+    my $retry = 1;
+    while ($retry < $maxretry) {
+        my $req = new HTTP::Request POST => $uri;
+        my $obj = {
+            jsonrpc => '2.0',
+            id      => 'qwer',
+            method  => $method,
+        };
+        if (@_) {
+            push( @{ $obj->{params} }, @_ );
+        }
+        $req->content( encode_json($obj) );
+
+        my $res = $client->request($req);
+
+        if ( $res && $res->is_success ) {
+            return decode_json( $res->content )->{result};
+        }
+        else {
+            $retry++;
+            if( $res ){
+              try {
+                my $errmsg = decode_json($res->content)->{error}{message};
+                say "Error: " . $errmsg unless($q);
+                $retry = $maxretry; # syntax error vs connection error
+              } catch {
+                say "Error: " . $res->content unless($q);
+              };
+            }
+        }
+    }
+    return undef;
+}
+
+sub prettybytes {
+   my $c = shift;
+   $c >= 1073741824 ? sprintf("%0.2fGB", $c/1073741824)
+      : $c >= 1048576 ? sprintf("%0.2fMB", $c/1048576)
+      : $c >= 1024 ? sprintf("%0.2fKB", $c/1024)
+      : $c . "B";
+   # thanks spoulson: http://stackoverflow.com/questions/152968/how-can-i-convert-a-number-to-its-multiple-form-in-perl
+}
+
+__END__
+
+=head1 ariastat
+
+=head1 DESCRIPTION
+
+Print out status information for a running aria2 instance
+
+=head1 USAGE
+
+ariast [<hostname[:port]]
+
+Defaults to server localhost and port 6888.
+
+=head1 AUTHOR
+
+  Kevin Miklavcic <kevin@9b.io>
+
