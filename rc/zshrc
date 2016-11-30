@@ -1,0 +1,91 @@
+# Collection of aliases and functions pulled 
+# from various resource files
+
+############################################
+# General aliases
+############################################
+alias suvi='sudo vi'
+alias pbr=perlbrew
+alias view='vim -R -'
+alias cls='clear; ls'
+alias teabag='ping -c 4 -i 4 -p 546561626167'
+
+
+############################################
+# Git aliases
+############################################ 
+alias gs='git status'
+alias gt='git status'
+alias ga='git add'
+alias gb='git branch'
+alias gc='git commit'
+alias gd='git diff'
+alias gp='git pull'
+alias go='git checkout'
+alias got='git'
+
+
+############################################ 
+# Perl utilities
+############################################
+
+######################
+# Print version string of perl module
+function pmver {
+   perl -M$1 -e "print \$$1::VERSION . \"\n\""
+}
+
+# Print perl include paths
+function perlinc () {
+   perl -e 'print join "\n", @INC, ""'
+}
+
+
+############################################
+# General utilities
+############################################
+
+# Partition input like mysql.LIMIT
+# usage: STDOUT | $0 <offset> <row count>
+# This is 1 based (sed line numbers)
+function range () {
+  offset=${1:-1}
+  size=${2:-1000}
+  let end=$offset+$size
+  sed -n "$offset,$end p"
+}
+
+# Partition input into batches like mysql.LIMIT
+# usage: STDOUT | $0 <batch_number> [<batchsize in lines>|1000]
+function batch () {
+  offset=${1:-1}
+  size=${2:-1000}
+  let "start=(offset-1)*size+1"
+  let "end=start+size-1"
+  sed -n "$start,$end p"
+}
+
+# Swap two files
+function fswap {
+   if [ ! -w $1 -o ! -w $2 ]
+   then
+      echo "Unwriteable argument";
+      return;
+   fi
+
+   mv $1 $1.swtmp
+   mv $2 $1
+   mv $1.swtmp $2
+}
+
+# vim `which`
+function viw {
+   vim `which $1`
+}
+
+# Copy file and store the path in the clipboard
+function cpt () {
+  cp $1 $2
+  pt $2/$1
+}
+
