@@ -1,0 +1,148 @@
+#!/usr/bin/env perl
+#
+# File name: dupes.pl
+# Author:    McLovin <kevin@9b.io>
+# Copyright: (c) Kevin Miklavcic 2017
+#
+#############################################################################
+#
+use 5.010;
+use strict;
+use warnings;
+use Getopt::Std;
+use Pod::Usage;
+
+my %lines;
+our $version = 0.4;
+our ($opt_a, $opt_q, $opt_c, $opt_d, $opt_h, $opt_s, $opt_S, $opt_t, $opt_C);
+
+# setup for usage
+getopts('aqhc:d:s:SCt');
+
+# a - show all entries for each key
+# c - what column to use as the key
+# d - specify the column separator, defaults to \s+
+# h - help, show usage info
+# q - don't print header line
+# s - separator between matches
+# S - show stats
+# C - show counts (just counts vs full stats)
+# t - trim leading and trailing whitespace
+
+HELP_MESSAGE() if (defined $opt_h);
+my $separator   = $opt_s // '~~';
+my $show_stats  = $opt_S // 0;
+my $show_all    = $opt_a // 0;
+my $trim        = $opt_t // 0;
+my $show_counts = $opt_C // 0;
+if (defined $opt_c && $opt_c !~ /^-?\d+$/) {
+  warn "Inavlid offset.  Using default all.\n";
+  $opt_c = undef;
+}
+if (!defined $opt_d) {
+  $opt_d = qr{\s+};
+}
+else {
+  $opt_d = qr{$opt_d};
+}
+
+say "::delimeter: $opt_d, column: " . ($opt_c // 'all') . ", separator: $separator" unless ($opt_q);
+
+my $total = 0;
+
+# map dataset
+while (<>) {
+  chomp;
+  my $line    = $_;
+  my $element = $_;
+  if (defined $opt_c) {
+    my @cols = split(/$opt_d/);    # split on our supplied delimeter only if a column is requested
+    $element = $cols[$opt_c] if ($cols[$opt_c]);    # don't count it if it doesn't exist
+  }
+  if ($trim) {
+    $element =~ s/^\s+//;
+    $element =~ s/\s+$//;
+    $line =~ s/^\s+//;
+    $line =~ s/\s+$//;
+  }
+  $lines{$element}{rows}{$line}++;                  # push entire line
+  $lines{$element}{count}++;                        #
+  $total++;
+}
+
+# identify duplicates
+#my $total = scalar keys %lines;
+foreach my $line (sort {$lines{$b}{count} <=> $lines{$a}{count}} keys %lines) {
+  my $count = scalar keys %{$lines{$line}};
+  if ($lines{$line}{count} > 1) {
+    if ($show_stats) {
+      print "[" . $lines{$line}{count} . "/" . $total . " (" . sprintf("%.2f", (($lines{$line}{count} / $total) * 100)) . "%)] $line\n";
+    }
+    elsif ($show_counts) {
+      print $lines{$line}{count} . ": " . $line . "\n";
+    }
+    elsif ($show_all) {
+      print $separator . "\n" . join("\n", keys %{$lines{$line}{rows}}) . "\n";
+    }
+    else {
+      print $line . "\n";
+    }
+  }
+}
+
+# Recognized usage function by Getopt.
+sub HELP_MESSAGE {
+  pod2usage(1);
+}
+
+# Recognized version function by Getopt.
+sub VERSION_MESSAGE {
+  print "dupes v$version\n";
+}
+
+__END__
+
+=head1 dupes
+
+=head1 DESCRIPTION
+
+Identifies lines that occur more than once in a stream of text.
+
+=head1 USAGE
+
+dupes [options] [<filename>| defaults to stdin]
+
+Options:
+
+  a - show all entries for each key
+  c - column to use as the key, defaults to using the entire line
+      when used, duplicate entry detection will use this column as the key
+  d - column delimeter, defaults to \s+
+  h - print usage info
+  q - quiet - don't print header line
+  s - separator to print between duplicate matches
+  S - show stats
+  C - show counts (just counts vs full stats)
+  t - trim leading and trailing whitespace
+
+=head1 EXAMPLE
+
+echo "hello" > a;
+echo "hi" > b;
+cp a c;
+md5sum * | dupes -c0 -d"\s+"
+
+Output:
+ ::delimeter: (?^:\s+), column: 0, separator: ~~
+ ~~
+ b1946ac92492d2347c6235b4d2611184  c
+ b1946ac92492d2347c6235b4d2611184  a
+
+=head1 AUTHOR
+
+  McLovin <kevin@9b.io>
+
+=head1 COPYRIGHT
+
+  (c) Kevin Miklavcic 2017
+
